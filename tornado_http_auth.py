@@ -183,11 +183,52 @@ class DigestAuthMixin(object):
         return hexdigest_str(':'.join(data).encode('ascii'))
 
 
-def digest_auth(realm, auth_func):
-    '''Decorator that protect methods with HTTP Digest authentication.'''
-    def digest_auth_decorator(func):
+class BasicAuthMixin(object):
+    class SendChallenge(Exception):
+        pass
+
+    def get_authenticated_user(self, check_credentials_func, realm):
+        try:
+            return self.authenticate_user(check_credentials_func, realm)
+        except self.SendChallenge:
+            self.send_auth_challenge(realm)
+
+    def send_auth_challenge(self, realm):
+        hdr = 'Basic realm="%s"' % realm.replace('\\', '\\\\').replace('"', '\\"')
+        self.set_status(401)
+        self.set_header('www-authenticate', hdr)
+        self.finish()
+        return False
+
+    def authenticate_user(self, check_credentials_func, realm):
+        auth_header = self.request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Basic '):
+            raise self.SendChallenge()
+
+        auth_data = auth_header.split(None, 1)[-1]
+        auth_data = base64.b64decode(auth_data).decode('ascii')
+        username, password = auth_data.split(':')
+
+        challenge = check_credentials_func(username)
+        if not challenge:
+            raise self.SendChallenge()
+
+        if challenge == password:
+            self._current_user = username
+            return True
+        else:
+            raise self.SendChallenge()
+        return False
+
+
+def auth_required(realm, auth_func):
+    '''Decorator that protect methods with HTTP authentication.'''
+    def auth_decorator(func):
         def inner(self, *args, **kw):
             if self.get_authenticated_user(auth_func, realm):
                 return func(self, *args, **kw)
         return inner
-    return digest_auth_decorator
+    return auth_decorator
+
+
+__all__ = 'auth_required', 'BasicAuthMixin', 'DigestAuthMixin'
