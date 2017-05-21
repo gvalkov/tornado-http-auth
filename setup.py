@@ -11,7 +11,7 @@ classifiers = [
 
 kw = {
     'name':             'tornado-http-auth',
-    'version':          '0.0.1',
+    'version':          '1.0.0',
     'description':      'Digest and basic authentication for tornado',
     'long_description': open('README.rst').read(),
     'author':           'Georgi Valkov',
