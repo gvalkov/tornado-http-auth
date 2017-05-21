@@ -7,7 +7,7 @@ tornado-http-auth
 
 
 Digest and basic authentication for the Tornado_ web framework. Based on code
-and ideas in Twisted's cred_.
+and ideas from Twisted's cred_.
 
 
 Installation
