@@ -31,8 +31,17 @@ Usage
 
   credentials = {'user1': 'pass1'}
 
+  # Example 1 (using decorator).
   class MainHandler(DigestAuthMixin, RequestHandler):
       @auth_required(realm='Protected', auth_func=credentials.get)
+      def get(self):
+          self.write('Hello %s' % self._current_user)
+
+  # Example 2 (using prepare and get_authentciated_user).
+  class MainHandler(BasicAuthMixin, RequestHandler):
+      def prepare(self):
+          self.get_authenticated_user(realm='Protected', auth_func=credentials.get)
+
       def get(self):
           self.write('Hello %s' % self._current_user)
 
