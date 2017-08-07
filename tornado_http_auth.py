@@ -207,7 +207,7 @@ class BasicAuthMixin(object):
 
         auth_data = auth_header.split(None, 1)[-1]
         auth_data = base64.b64decode(auth_data).decode('ascii')
-        username, password = auth_data.split(':')
+        username, password = auth_data.split(':', 1)
 
         challenge = check_credentials_func(username)
         if not challenge:

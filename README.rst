@@ -40,7 +40,7 @@ Usage
   # Example 2 (using prepare and get_authentciated_user).
   class MainHandler(BasicAuthMixin, RequestHandler):
       def prepare(self):
-          self.get_authenticated_user(realm='Protected', auth_func=credentials.get)
+          self.get_authenticated_user(check_credentials_func=credentials.get, realm='Protected')
 
       def get(self):
           self.write('Hello %s' % self._current_user)
@@ -52,8 +52,11 @@ Usage
   app.listen(8888)
   tornado.ioloop.IOLoop.current().start()
 
-  # curl --digest user1:pass1 -v http://localhost:8888  -> 200 OK
-  # curl --digest user2:pass2 -v http://localhost:8888  -> 401 Unauthorized
+  # curl --user user1:pass1 -v  http://localhost:8888  -> 200 OK
+  # curl --user user2:pass2 -v  http://localhost:8888  -> 401 Unauthorized
+  # Remove or comment second class
+  # curl --digest --user user1:pass1 -v http://localhost:8888  -> 200 OK
+  # curl --digest --user user2:pass2 -v http://localhost:8888  -> 401 Unauthorized
 
 
 License
