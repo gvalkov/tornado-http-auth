@@ -56,8 +56,11 @@ class DigestAuthMixin(object):
 
         params = self.parse_auth_header(auth_header)
 
-        self.verify_params(params)
-        self.verify_opaque(params['opaque'], params['nonce'], self.request.remote_ip)
+        try:
+            self.verify_params(params)
+            self.verify_opaque(params['opaque'], params['nonce'], self.request.remote_ip)
+        except AuthError:
+            raise self.SendChallenge()
 
         challenge = check_credentials_func(params['username'])
         if not challenge:
