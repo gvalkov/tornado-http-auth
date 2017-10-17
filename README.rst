@@ -13,7 +13,7 @@ and ideas from Twisted's cred_.
 Installation
 ------------
 
-The latest stable version of tornado-ansi-markup can be installed from pypi:
+The latest stable version of tornado-http-auth can be installed from pypi:
 
 .. code-block:: bash
 
