@@ -13,7 +13,7 @@ and ideas from Twisted's cred_.
 Installation
 ------------
 
-The latest stable version of tornado-ansi-markup can be installed from pypi:
+The latest stable version of tornado-http-auth can be installed from pypi:
 
 .. code-block:: bash
 
@@ -52,8 +52,8 @@ Usage
   app.listen(8888)
   tornado.ioloop.IOLoop.current().start()
 
-  # curl --user user1:pass1 -v  http://localhost:8888  -> 200 OK
-  # curl --user user2:pass2 -v  http://localhost:8888  -> 401 Unauthorized
+  # curl --user user1:pass1 -v http://localhost:8888  -> 200 OK
+  # curl --user user2:pass2 -v http://localhost:8888  -> 401 Unauthorized
   # Remove or comment second class
   # curl --digest --user user1:pass1 -v http://localhost:8888  -> 200 OK
   # curl --digest --user user2:pass2 -v http://localhost:8888  -> 401 Unauthorized
