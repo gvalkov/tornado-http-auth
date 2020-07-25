@@ -212,7 +212,7 @@ class BasicAuthMixin(object):
         try:
             auth_data = base64.b64decode(auth_data).decode('ascii')
             username, password = auth_data.split(':', 1)
-        except binascii.Error:
+        except (UnicodeDecodeError, binascii.Error):
             raise self.SendChallenge()
 
         challenge = check_credentials_func(username)
