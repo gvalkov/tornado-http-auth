@@ -40,9 +40,14 @@ class AuthTest(AsyncHTTPTestCase):
         res = self.fetch('/basic')
         self.assertEqual(res.code, 401)
 
+        res = self.fetch('/basic', headers={'Authorization': 'Basic foo bar'})
+        self.assertEqual(res.code, 401)
+
         auth = '%s:%s' % ('user1', 'pass1')
         auth = b64encode(auth.encode('ascii'))
-        hdr = {'Authorization': 'Basic %s' % auth.decode('utf8')}
-        res = self.fetch('/basic', headers=hdr)
-        self.assertEqual(res.code, 200)
 
+        res = self.fetch('/basic', headers={'Authorization': 'Basic ___%s' % auth.decode('utf8')})
+        self.assertEqual(res.code, 401)
+
+        res = self.fetch('/basic', headers={'Authorization': 'Basic %s' % auth.decode('utf8')})
+        self.assertEqual(res.code, 200)
