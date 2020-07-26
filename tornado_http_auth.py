@@ -210,7 +210,7 @@ class BasicAuthMixin(object):
 
         auth_data = auth_header.split(None, 1)[-1]
         try:
-            auth_data = base64.b64decode(auth_data).decode('ascii')
+            auth_data = base64.b64decode(auth_data, validate=True).decode('ascii')
             username, password = auth_data.split(':', 1)
         except (UnicodeDecodeError, binascii.Error):
             raise self.SendChallenge()
