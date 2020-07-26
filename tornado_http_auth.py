@@ -207,6 +207,7 @@ class BasicAuthMixin(object):
         auth_header = self.request.headers.get('Authorization')
         if not auth_header or not auth_header.startswith('Basic '):
             raise self.SendChallenge()
+
         auth_data = auth_header.split(None, 1)[-1]
         try:
             auth_data = base64.b64decode(auth_data, validate=True).decode('ascii')
