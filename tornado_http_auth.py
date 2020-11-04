@@ -1,12 +1,13 @@
 # Mostly everything in this module is inspired or outright copied from Twisted's cred.
 # https://github.com/twisted/twisted/blob/trunk/src/twisted/cred/credentials.py
-
+import inspect
 import os, re, sys
 import time
 import binascii
 import base64
 import hashlib
 
+import pamela
 from tornado.auth import AuthError
 
 
@@ -212,16 +213,34 @@ class BasicAuthMixin(object):
         auth_data = base64.b64decode(auth_data).decode('ascii')
         username, password = auth_data.split(':', 1)
 
-        challenge = check_credentials_func(username)
-        if not challenge:
-            raise self.SendChallenge()
+        # Here we keep backward compatibility with:
+        #   username -> password
+        # behavior, while also providing a
+        #   username, password -> Bool
+        # behavior for stricter authentication systems (PAM for instance)
+        loggedin = False
 
-        if challenge == password:
+        try:
+            challenge = check_credentials_func(username)
+            if not challenge:  # no password -> wrong username -> try again  (too nice to be safe ?)
+                raise self.SendChallenge()
+
+            loggedin = challenge == password
+
+        except (TypeError, pamela.PAMError):
+            # PAMError can occur because password is None by default, as pamela relies on PAM conversation interface...
+
+            try:
+                # password required, expect boolean return
+                loggedin = check_credentials_func(username, password)
+
+            except Exception:  # any exception here means wrong username / password combination -> try again
+                raise self.SendChallenge()
+
+        if loggedin:
             self._current_user = username
-            return True
-        else:
-            raise self.SendChallenge()
-        return False
+
+        return loggedin
 
 
 def auth_required(realm, auth_func):
