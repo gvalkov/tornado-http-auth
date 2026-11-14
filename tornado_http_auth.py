@@ -1,21 +1,13 @@
 # Mostly everything in this module is inspired or outright copied from Twisted's cred.
 # https://github.com/twisted/twisted/blob/trunk/src/twisted/cred/credentials.py
 
-import os, re, sys
+import os, re
 import time
 import binascii
 import base64
 import hashlib
 
 from tornado.auth import AuthError
-
-
-if sys.version_info >= (3,):
-    def int_to_bytes(i):
-        return ('%d' % i).encode('ascii')
-else:
-    def int_to_bytes(i):
-        return b'%d' % i
 
 
 def hexdigest_bytes(data, algo=None):
@@ -30,7 +22,7 @@ class StaleNonce(AuthError):
     '''The opaque/nonce pair is authentic, but older than the challenge timeout.'''
 
 
-class DigestAuthMixin(object):
+class DigestAuthMixin:
     DIGEST_PRIVATE_KEY = b'secret-random'
     DIGEST_CHALLENGE_TIMEOUT_SECONDS = 60
 
@@ -119,7 +111,7 @@ class DigestAuthMixin(object):
         return False
 
     def create_opaque(self, nonce, clientip, now):
-        key = (nonce, clientip.encode('ascii'), int_to_bytes(now))
+        key = (nonce, clientip.encode('ascii'), b'%d' % now)
         key = b','.join(key)
 
         ekey = base64.b64encode(key).replace(b'\n', b'')
@@ -206,7 +198,7 @@ class DigestAuthMixin(object):
         return hexdigest_str(':'.join(data).encode('ascii'))
 
 
-class BasicAuthMixin(object):
+class BasicAuthMixin:
     class SendChallenge(Exception):
         pass
 
