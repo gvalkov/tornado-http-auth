@@ -31,7 +31,8 @@ class DigestAuthMixin(object):
     DIGEST_CHALLENGE_TIMEOUT_SECONDS = 60
 
     class SendChallenge(Exception):
-        pass
+        def __init__(self, stale=False):
+            self.stale = stale
 
     re_auth_hdr_parts = re.compile(
         '([^= ]+)'    # The key
@@ -46,8 +47,9 @@ class DigestAuthMixin(object):
     def get_authenticated_user(self, check_credentials_func, realm):
         try:
             return self.authenticate_user(check_credentials_func, realm)
-        except self.SendChallenge:
-            self.send_auth_challenge(realm, self.request.remote_ip, self.get_time())
+        except self.SendChallenge as ex:
+            self.send_auth_challenge(realm, self.request.remote_ip, self.get_time(),
+                                     stale=ex.stale)
 
     def authenticate_user(self, check_credentials_func, realm):
         auth_header = self.request.headers.get('Authorization')
@@ -85,17 +87,18 @@ class DigestAuthMixin(object):
 
         return params
 
-    def create_auth_challenge(self, realm, clientip, time):
+    def create_auth_challenge(self, realm, clientip, time, stale):
         nonce = binascii.hexlify(os.urandom(12))
         opaque = self.create_opaque(nonce, clientip, time)
         realm = realm.replace('\\', '\\\\').replace('"', '\\"')
 
-        hdr = 'Digest algorithm="MD5", realm="%s", qop="auth", nonce="%s", opaque="%s"'
-        return hdr % (realm, nonce.decode('ascii'), opaque.decode('ascii'))
+        hdr = 'Digest algorithm="MD5", realm="%s", qop="auth", nonce="%s", opaque="%s", stale=%s'
+        return hdr % (realm, nonce.decode('ascii'), opaque.decode('ascii'),
+                      'true' if stale else 'false')
 
-    def send_auth_challenge(self, realm, remote_ip, time):
+    def send_auth_challenge(self, realm, remote_ip, time, stale=False):
         self.set_status(401)
-        self.set_header('www-authenticate', self.create_auth_challenge(realm, remote_ip, time))
+        self.set_header('www-authenticate', self.create_auth_challenge(realm, remote_ip, time, stale))
         self.finish()
         return False
 
@@ -145,7 +148,8 @@ class DigestAuthMixin(object):
 
         expired = (time.time() - received_time) > self.DIGEST_CHALLENGE_TIMEOUT_SECONDS
         if expired:
-            raise AuthError('Invalid response, incompatible opaque/nonce too old')
+            # stale nonce
+            raise self.SendChallenge(True)
 
         digest = hexdigest_str(received_key.encode('ascii') + self.DIGEST_PRIVATE_KEY)
         if received_digest != digest:
