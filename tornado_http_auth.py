@@ -26,12 +26,17 @@ def hexdigest_str(data, algo=None):
     return hashlib.md5(data).hexdigest()
 
 
+class StaleNonce(AuthError):
+    '''The opaque/nonce pair is authentic, but older than the challenge timeout.'''
+
+
 class DigestAuthMixin(object):
     DIGEST_PRIVATE_KEY = b'secret-random'
     DIGEST_CHALLENGE_TIMEOUT_SECONDS = 60
 
     class SendChallenge(Exception):
         def __init__(self, stale=False):
+            super().__init__()
             self.stale = stale
 
     re_auth_hdr_parts = re.compile(
@@ -58,9 +63,16 @@ class DigestAuthMixin(object):
 
         params = self.parse_auth_header(auth_header)
 
+        # A stale nonce is not rejected right away. RFC 7616 says to send
+        # stale=true only if the digest is valid for the old nonce (the client
+        # knows the password). The client can then retry with the new nonce
+        # without asking the user again.
+        stale = False
         try:
             self.verify_params(params)
             self.verify_opaque(params['opaque'], params['nonce'], self.request.remote_ip)
+        except StaleNonce:
+            stale = True
         except AuthError:
             raise self.SendChallenge()
 
@@ -73,6 +85,8 @@ class DigestAuthMixin(object):
 
         if expected_response and received_response:
             if expected_response == received_response:
+                if stale:
+                    raise self.SendChallenge(stale=True)
                 self._current_user = params['username']
                 return True
             else:
@@ -87,14 +101,16 @@ class DigestAuthMixin(object):
 
         return params
 
-    def create_auth_challenge(self, realm, clientip, time, stale):
+    def create_auth_challenge(self, realm, clientip, time, stale=False):
         nonce = binascii.hexlify(os.urandom(12))
         opaque = self.create_opaque(nonce, clientip, time)
         realm = realm.replace('\\', '\\\\').replace('"', '\\"')
 
-        hdr = 'Digest algorithm="MD5", realm="%s", qop="auth", nonce="%s", opaque="%s", stale=%s'
-        return hdr % (realm, nonce.decode('ascii'), opaque.decode('ascii'),
-                      'true' if stale else 'false')
+        hdr = 'Digest algorithm="MD5", realm="%s", qop="auth", nonce="%s", opaque="%s"'
+        hdr = hdr % (realm, nonce.decode('ascii'), opaque.decode('ascii'))
+        if stale:
+            hdr += ', stale=true'
+        return hdr
 
     def send_auth_challenge(self, realm, remote_ip, time, stale=False):
         self.set_status(401)
@@ -135,6 +151,11 @@ class DigestAuthMixin(object):
         except ValueError:
             raise AuthError('Invalid response, invalid opaque value')
 
+        # Check that the opaque is authentic before any of its fields are used.
+        digest = hexdigest_str(received_key.encode('ascii') + self.DIGEST_PRIVATE_KEY)
+        if received_digest != digest:
+            raise AuthError('Invalid response, invalid opaque value')
+
         if received_nonce != nonce:
             raise AuthError('Invalid response, incompatible opaque/nonce values')
 
@@ -148,12 +169,7 @@ class DigestAuthMixin(object):
 
         expired = (time.time() - received_time) > self.DIGEST_CHALLENGE_TIMEOUT_SECONDS
         if expired:
-            # stale nonce
-            raise self.SendChallenge(True)
-
-        digest = hexdigest_str(received_key.encode('ascii') + self.DIGEST_PRIVATE_KEY)
-        if received_digest != digest:
-            raise AuthError('Invalid response, invalid opaque value')
+            raise StaleNonce('Invalid response, incompatible opaque/nonce too old')
 
         return True
 
@@ -241,4 +257,4 @@ def auth_required(realm, auth_func):
     return auth_decorator
 
 
-__all__ = 'auth_required', 'BasicAuthMixin', 'DigestAuthMixin'
+__all__ = 'auth_required', 'BasicAuthMixin', 'DigestAuthMixin', 'StaleNonce'
