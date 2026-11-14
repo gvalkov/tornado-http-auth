@@ -1,6 +1,6 @@
 [project]
 name = "tornado-http-auth"
-version = "1.1.1"
+version = "1.2.0"
 description = "Digest and basic authentication for tornado"
 readme = "README.md"
 license = "Apache-2.0"
